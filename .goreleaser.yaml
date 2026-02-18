@@ -4,6 +4,8 @@ project_name: kickstartsh
 builds:
   - main: ./cmd/kickstart
     binary: kickstartsh
+    ldflags:
+      - -s -w -X github.com/kickstartdev/kickstart/internal/auth.GitHubClientID={{ .Env.GH_CLIENT_ID }}
     goos:
       - linux
       - darwin

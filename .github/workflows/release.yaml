@@ -26,3 +26,4 @@ jobs:
                 args: release --clean
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}

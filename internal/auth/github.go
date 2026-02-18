@@ -14,6 +14,9 @@ import (
 	"github.com/kickstartdev/kickstart/internal/debug"
 )
 
+// Set via ldflags at build time, falls back to env var
+var GitHubClientID string
+
 type DeviceCodeResponse struct {
 	DeviceCode      string `json:"device_code"`
 	UserCode        string `json:"user_code"`
@@ -28,9 +31,16 @@ type TokenResponse struct {
 	Error       string `json:"error"`
 }
 
-func RequestDeviceCode() (*DeviceCodeResponse, error) {
+func getClientID() string {
+	if GitHubClientID != "" {
+		return GitHubClientID
+	}
 	godotenv.Load()
-	clientID := os.Getenv("GITHUB_CLIENT_ID")
+	return os.Getenv("GITHUB_CLIENT_ID")
+}
+
+func RequestDeviceCode() (*DeviceCodeResponse, error) {
+	clientID := getClientID()
 	debug.Log("GITHUB_CLIENT_ID=%q", clientID)
 
 	if clientID == "" {
@@ -81,8 +91,7 @@ func RequestDeviceCode() (*DeviceCodeResponse, error) {
 }
 
 func PollForToken(deviceCode string, interval int) (string, error) {
-	godotenv.Load()
-	clientID := os.Getenv("GITHUB_CLIENT_ID")
+	clientID := getClientID()
 	debug.Log("polling for token, interval=%d", interval)
 
 	for {
