@@ -155,7 +155,7 @@ func (s *Scaffolder) replaceVariables() error {
 
 // Step 3: Create a new GitHub repo
 func (s *Scaffolder) createRepo() error {
-	body := fmt.Sprintf(`{"name":"%s","private":true}`, s.ProjectName)
+	body := fmt.Sprintf(`{"name":"%s","private":true,"auto_init":true}`, s.ProjectName)
 
 	req, err := http.NewRequest("POST", "https://api.github.com/user/repos", strings.NewReader(body))
 	if err != nil {
@@ -234,14 +234,20 @@ func (s *Scaffolder) pushFiles() error {
 		return err
 	}
 
-	// create initial commit with no parent (empty repo)
-	commitSHA, err := s.createCommit(username, treeSHA, "Initial scaffold from "+s.Repo)
+	// get the SHA of the initial commit created by auto_init
+	parentSHA, err := s.getHeadSHA(username)
 	if err != nil {
 		return err
 	}
 
-	// create main branch ref pointing to the new commit
-	return s.createRef(username, commitSHA)
+	// create commit on top of the auto_init commit
+	commitSHA, err := s.createCommit(username, treeSHA, "Initial scaffold from "+s.Repo, parentSHA)
+	if err != nil {
+		return err
+	}
+
+	// update main branch to point to our commit
+	return s.updateRef(username, commitSHA)
 }
 
 type fileEntry struct {
@@ -323,8 +329,60 @@ func (s *Scaffolder) createTree(username string, entries []map[string]string) (s
 	return result.SHA, nil
 }
 
-func (s *Scaffolder) createCommit(username string, treeSHA string, message string) (string, error) {
-	body := fmt.Sprintf(`{"message":"%s","tree":"%s","parents":[]}`, message, treeSHA)
+func (s *Scaffolder) getHeadSHA(username string) (string, error) {
+	req, _ := http.NewRequest("GET",
+		fmt.Sprintf("https://api.github.com/repos/%s/%s/git/ref/heads/main", username, s.ProjectName),
+		nil,
+	)
+	req.Header.Set("Authorization", "Bearer "+s.Token)
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("failed to get HEAD: %d %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Object struct {
+			SHA string `json:"sha"`
+		} `json:"object"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result.Object.SHA, nil
+}
+
+func (s *Scaffolder) updateRef(username string, commitSHA string) error {
+	body := fmt.Sprintf(`{"sha":"%s"}`, commitSHA)
+
+	req, _ := http.NewRequest("PATCH",
+		fmt.Sprintf("https://api.github.com/repos/%s/%s/git/refs/heads/main", username, s.ProjectName),
+		strings.NewReader(body),
+	)
+	req.Header.Set("Authorization", "Bearer "+s.Token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to update ref: %d %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+func (s *Scaffolder) createCommit(username string, treeSHA string, message string, parentSHA string) (string, error) {
+	body := fmt.Sprintf(`{"message":"%s","tree":"%s","parents":["%s"]}`, message, treeSHA, parentSHA)
 
 	req, _ := http.NewRequest("POST",
 		fmt.Sprintf("https://api.github.com/repos/%s/%s/git/commits", username, s.ProjectName),
@@ -351,29 +409,6 @@ func (s *Scaffolder) createCommit(username string, treeSHA string, message strin
 	return result.SHA, nil
 }
 
-func (s *Scaffolder) createRef(username string, commitSHA string) error {
-	body := fmt.Sprintf(`{"ref":"refs/heads/main","sha":"%s"}`, commitSHA)
-
-	req, _ := http.NewRequest("POST",
-		fmt.Sprintf("https://api.github.com/repos/%s/%s/git/refs", username, s.ProjectName),
-		strings.NewReader(body),
-	)
-	req.Header.Set("Authorization", "Bearer "+s.Token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to create ref: %d %s", resp.StatusCode, string(respBody))
-	}
-
-	return nil
-}
 
 // Step 5: Clone the repo locally (replace the downloaded skeleton)
 func (s *Scaffolder) cloneRepo() error {
