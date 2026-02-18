@@ -1,0 +1,27 @@
+.claude
+
+# binaries
+*.exe
+dist/
+
+# go
+vendor/
+
+# kickstart config (don't commit tokens)
+.kickstart/
+
+# os
+.DS_Store
+Thumbs.db
+
+# ide
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# debug
+debug.log
+
+# env
+.env
