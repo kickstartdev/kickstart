@@ -36,6 +36,9 @@ func getClientID() string {
 		return GitHubClientID
 	}
 	godotenv.Load()
+	if id := os.Getenv("GH_CLIENT_ID"); id != "" {
+		return id
+	}
 	return os.Getenv("GITHUB_CLIENT_ID")
 }
 
@@ -49,7 +52,7 @@ func RequestDeviceCode() (*DeviceCodeResponse, error) {
 
 	body, _ := json.Marshal(map[string]string{
 		"client_id": clientID,
-		"scope":     "repo read:org",
+		"scope":     "repo read:org workflow",
 	})
 
 	req, _ := http.NewRequest("POST", "https://github.com/login/device/code", bytes.NewBuffer(body))
