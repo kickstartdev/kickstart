@@ -89,7 +89,7 @@ func (m *Model) UpdateTemplates(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "enter" :
+		case "enter":
 			if len(m.Templates) > 0 {
 				idx := m.Table.Cursor()
 				m.SelectedTemplate = m.Templates[idx]
@@ -97,14 +97,19 @@ func (m *Model) UpdateTemplates(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.FormLoading = true
 				return m, m.fetchTemplateLoadedConfigCmd
 			}
-		
+
+		case "n":
+			m.initCreateTemplate()
+			m.Screen = screenCreateTemplate
+			return m, nil
+
 		case "r":
 			if m.TemplatesError != "" {
 				m.TemplatesError = ""
 				m.TemplatesLoading = true
 				return m, m.fetchTemplateCmd
 			}
-		}	
+		}
 	}
 
 
@@ -133,5 +138,5 @@ func (m *Model) ViewTemplates() string {
 	content := "Select a template:\n\n"
 	content += m.Table.View()
 
-	return m.Layout(content, "↑/↓ navigate    enter select    q quit")
+	return m.Layout(content, "↑/↓ navigate    enter select    n new    q quit")
 }

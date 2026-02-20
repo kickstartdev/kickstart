@@ -11,6 +11,7 @@ import (
 	"github.com/kickstartdev/kickstart/internal/scaffold"
 )
 
+
 type Model struct {
 	Screen   string
 	Choices  []string
@@ -52,18 +53,27 @@ type Model struct {
 	ScaffoldCurrent int
 	ScaffoldError   string
 
-
-
+	// create template wizard
+	CreateStep        int
+	CreateMetaInputs  []textinput.Model
+	CreateMetaCursor  int
+	CreateConfig      github.TemplateConfig
+	CreateRepoName    string
+	CreateVarInput    textinput.Model
+	CreateVarCurrent  github.Variable
+	CreatePublishErr  string
+	CreatePublishedURL string
 }
 
 const (
-	screenWelcome     = "welcome"
-	screenAuth        = "auth"
-	screenAuthSuccess = "auth_success"
-	screenTemplates   = "templates"
-	screenForm        = "form"
-	screenScaffolding = "scaffolding"
-	screenSuccess     = "success"
+	screenWelcome        = "welcome"
+	screenAuth           = "auth"
+	screenAuthSuccess    = "auth_success"
+	screenTemplates      = "templates"
+	screenForm           = "form"
+	screenScaffolding    = "scaffolding"
+	screenSuccess        = "success"
+	screenCreateTemplate = "create_template"
 )
 
 func NewApp() *Model {
@@ -110,8 +120,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
-		case	"q":
-			if m.Screen != screenForm {
+		case "q":
+			if m.Screen != screenForm && m.Screen != screenCreateTemplate {
 				return m, tea.Quit
 			}
 		case "enter":
@@ -142,6 +152,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.UpdateForm(msg)
 	case screenScaffolding:
 		return m.UpdateScaffolding(msg)
+	case screenCreateTemplate:
+		return m.UpdateCreateTemplate(msg)
 	}
 	
 
@@ -165,6 +177,8 @@ func (m *Model) View() string {
 		return m.ViewScaffolding()
 	case screenSuccess:
 		return m.ViewSuccess()
+	case screenCreateTemplate:
+		return m.ViewCreateTemplate()
 	default:
 		return ""
 	}
